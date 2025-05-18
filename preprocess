@@ -1,0 +1,67 @@
+#!/bin/bash
+###############################################################################
+# Script: preprocess
+# Author: Anagha Sreekala
+# Student ID: 24021458
+# Unit: CITS4407 - Open Source Tools and Scripting - Assignment 2
+#
+# Description:
+#   This script takes a raw dataset file and cleans it for analysis.
+#   It performs the following steps:
+#     - Converts semicolons (;) to tabs
+#     - Converts Windows-style line endings (CRLF) to Unix (LF)
+#     - Changes decimal commas to decimal points
+#     - Removes any non-ASCII characters
+#     - Fills in missing IDs with new unique numbers
+#     - Replaces dots with commas in "Mechanics" and "Domains" fields
+###############################################################################
+
+# Check if a filename was provided
+if [ -z "$1" ]; then
+  echo "Error: Please provide an input filename." >&2
+  exit 1
+fi
+
+# Check if the file exists
+if [ ! -f "$1" ]; then
+  echo "Error: File '$1' not found." >&2
+  exit 1
+fi
+
+# - Replace ; with tabs
+# - Remove carriage returns
+# - Convert ',' decimal points to '.'
+# - Remove all non-ASCII characters
+tr ';' '\t' < "$1" | tr -d '\r' | sed 's/,/./g' | tr -d -c '[:print:][:space:]\n\t' > temp_file
+
+# Get the highest existing ID in the file (assumes ID is in column 1)
+max_id=$(awk -F'\t' 'NR > 1 && $1 ~ /^[0-9]+$/ { if ($1 > max) max = $1 } END { print max }' temp_file)
+
+# Use awk to assign new IDs where missing and fix punctuation in fields
+awk -v max_id="$max_id" '
+BEGIN {
+  FS = OFS = "\t"
+  id_counter = max_id + 1
+}
+NR == 1 {
+  print $0  # Print header
+}
+NR > 1 {
+  # Assign a new ID if the first column is empty
+  if ($1 == "") {
+    $1 = id_counter++
+  }
+  # Replace dots with commas in Mechanics field
+  if ($13 ~ /\./) {
+    gsub(/\. */, ", ", $13)
+  }
+  print $0
+}
+' temp_file > cleaned_file
+
+# Output cleaned content to standard output
+cat cleaned_file
+
+# Remove temporary files
+rm temp_file cleaned_file
+exit 0
