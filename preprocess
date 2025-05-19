@@ -1,0 +1,62 @@
+#!/bin/bash
+###############################################################################
+# Script: preprocess
+# Author: Anagha Sreekala
+# Student ID: 24021458
+# Unit: CITS4407 - Open Source Tools and Scripting - Assignment 2
+#
+# Description:
+#   This script takes a raw dataset file and cleans it for analysis.
+#   It performs the following steps:
+#     - Converts semicolons (;) to tabs
+#     - Converts Windows-style line endings (CRLF) to Unix (LF)
+#     - Changes decimal commas to decimal points
+#     - Removes any non-ASCII characters
+#     - Fills in missing IDs with new unique numbers
+###############################################################################
+
+set -euo pipefail  # Exit if any command fails, unset variable used, or pipe fails
+
+# Check if input file is provided and exists
+if [ $# -ne 1 ]; then
+  echo "Please provide a filename to analyse." >&2
+  exit 1
+fi
+
+input_file="$1"
+
+if [ ! -f "$input_file" ]; then
+  echo "File '$input_file' was not found." >&2
+  exit 1
+fi
+
+# Create a temporary file to store cleaned content
+cleaned_tmp=$(mktemp)
+trap 'rm -f "$cleaned_tmp"' EXIT
+
+# Clean basic formatting
+# - Convert CRLF to LF
+# - Remove non-ASCII characters
+# - Convert semicolons to tabs
+awk '
+{
+  gsub(/\r/, "")                    # Remove carriage returns
+  gsub(/[^\x09\x0A\x0D\x20-\x7E]/, "")  # Remove all non-ASCII characters
+  gsub(/;/, "\t")                   # Convert semicolons to tabs
+  print
+}
+' "$input_file" > "$cleaned_tmp"
+
+# Convert the decimal commas to decimal points
+sed -E -i 's/([0-9]),([0-9]+)/\1.\2/g' "$cleaned_tmp"
+
+# Fill in missing IDs with unique new ones
+# First find the max existing ID
+max_id=$(awk -F'\t' 'NR > 1 && $1 ~ /^[0-9]+$/ && $1 > max { max = $1 } END { print max }' "$cleaned_tmp")
+
+# Replace missing IDs and print cleaned output
+awk -F'\t' -v OFS='\t' -v max="$max_id" '
+NR == 1 { print; next }         # Keep header as it is
+$1 == "" { $1 = ++max }         # Replace empty ID with new unique number
+{ print }
+' "$cleaned_tmp"
