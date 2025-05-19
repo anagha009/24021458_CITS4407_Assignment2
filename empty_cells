@@ -10,9 +10,9 @@
 #   how many empty cells are in each column.
 ###############################################################################
 
-# Check if exactly two arguments are given: file name and separator
+# Check if exactly two arguments are given, the file name and separator
 if [ $# -ne 2 ]; then
-  echo "Usage: $0 <filename> <separator>" >&2
+  echo "Please provide the filename and separator." >&2
   exit 1
 fi
 
@@ -21,14 +21,14 @@ sep="$2"
 
 # Check if the file exists
 if [ ! -f "$file" ]; then
-  echo "Error: File '$file' not found." >&2
+  echo "File '$file' was not found." >&2
   exit 1
 fi
 
 # Remove Windows-style line endings and process the file
 tr -d '\r' < "$file" | awk -v FS="$sep" '
 NR == 1 {
-  # First row is the header — store column names
+  # First row is the header store column names
   num_cols = split($0, headers, FS)
   for (i = 1; i <= num_cols; i++) {
     empty_counts[i] = 0  # initialize counter
@@ -38,7 +38,7 @@ NR > 1 {
   # Check each field in the row
   for (i = 1; i <= num_cols; i++) {
     field = $i
-    gsub(/^[[:space:]]*|[[:space:]]*$/, "", field)  # remove leading/trailing spaces
+    gsub(/^[[:space:]]*|[[:space:]]*$/, "", field)  # remove leading or trailing spaces
     gsub(/"/, "", field)                            # remove quotes
     if (field == "") {
       empty_counts[i]++
@@ -46,9 +46,9 @@ NR > 1 {
   }
 }
 END {
-  # Print header name and number of empty cells per column
+  # Print the header name and number of empty cells per column
   for (i = 1; i <= num_cols; i++) {
-    gsub(/\t/, " ", headers[i])  # replace tab in header (if any) with space
+    gsub(/\t/, " ", headers[i])  # replace tab in header with space
     printf "%s: %d\n", headers[i], empty_counts[i]
   }
 }
