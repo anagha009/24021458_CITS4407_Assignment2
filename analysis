@@ -1,0 +1,102 @@
+#!/bin/bash
+###############################################################################
+# Script: analysis
+# Author: Anagha Sreekala
+# Student ID: 24021458
+# Unit: CITS4407 - Open Source Tools and Scripting - Assignment 2
+#
+# Description:
+#   This script analyzes a cleaned BGG dataset (TSV format) and reports:
+#     - The most common game mechanics
+#     - The most common game domain
+#     - Correlation between year published and average rating
+#     - Correlation between complexity and average rating
+###############################################################################
+
+# Check if input file is provided
+if [ -z "$1" ]; then
+  echo "Please provide a filename to analyse." >&2
+  exit 1
+fi
+
+# Check if file exists
+if [ ! -f "$1" ]; then
+  echo "File was not found $1" >&2
+  exit 1
+fi
+
+file="$1"
+
+# Find the most common game mechanic
+most_popular_mechanic=$(awk -F'\t' '
+NR > 1 && $13 != "" {
+  n = split($13, arr, ",")
+  for (i = 1; i <= n; i++) {
+    gsub(/^ +| +$/, "", arr[i])  # Trim spaces
+    mech[arr[i]]++
+  }
+}
+END {
+  for (m in mech) {
+    if (mech[m] > max) {
+      max = mech[m]
+      best = m
+    }
+  }
+  printf "The most popular game mechanic is \"%s\" found in %d games\n", best, max
+}' "$file")
+
+# Find the most common game domain
+most_popular_domain=$(awk -F'\t' '
+NR > 1 && $14 != "" {
+  n = split($14, arr, ",")
+  for (i = 1; i <= n; i++) {
+    gsub(/^ +| +$/, "", arr[i])
+    dom[arr[i]]++
+  }
+}
+END {
+  for (d in dom) {
+    if (dom[d] > max) {
+      max = dom[d]
+      best = d
+    }
+  }
+  printf "The most popular game domain is \"%s\" found in %d games\n", best, max
+}' "$file")
+
+# Calculate correlation: Year Published vs Average Rating
+cor_year_rating=$(awk -F'\t' '
+NR > 1 && $3 != "" && $9 != "" {
+  x = $3; y = $9
+  sum_x += x; sum_y += y
+  sum_x2 += x*x; sum_y2 += y*y
+  sum_xy += x*y
+  n++
+}
+END {
+  r = (n * sum_xy - sum_x * sum_y) / sqrt((n * sum_x2 - sum_x^2) * (n * sum_y2 - sum_y^2))
+  printf "Correlation between Year Published and Rating: %.3f\n", r
+}' "$file")
+
+# Calculate correlation: Complexity vs Average Rating
+cor_complexity_rating=$(awk -F'\t' '
+NR > 1 && $11 != "" && $9 != "" {
+  x = $11; y = $9
+  sum_x += x; sum_y += y
+  sum_x2 += x*x; sum_y2 += y*y
+  sum_xy += x*y
+  n++
+}
+END {
+  r = (n * sum_xy - sum_x * sum_y) / sqrt((n * sum_x2 - sum_x^2) * (n * sum_y2 - sum_y^2))
+  printf "Correlation between Complexity and Rating: %.3f\n", r
+}' "$file")
+
+# Print results
+echo "$most_popular_mechanic"
+echo "$most_popular_domain"
+echo "$cor_year_rating"
+echo "$cor_complexity_rating"
+
+exit 0
